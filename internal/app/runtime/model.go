@@ -22,6 +22,8 @@ type ModelSelectionInput struct {
 	Inherited                                          modelpolicy.Policy
 	Parent                                             runpkg.ParentModel
 	ResumeModel                                        runpkg.ParentModel
+	Run                                                *runpkg.Request
+	Debug                                              bool
 }
 
 // SelectRunModel is the single selection/admission path for CLI and delegated
@@ -59,9 +61,15 @@ func SelectRunModel(cfg *config.Config, in ModelSelectionInput) (ModelSelection,
 	policy := in.Inherited
 	if in.Agent != nil {
 		policy = policy.With(agentName, in.Agent.AllowedModels)
+		policy.LockSession = policy.LockSession || in.Agent.LockSession
 	}
 	if err := policy.CheckWithConfig(cfg, agentName, selected.Provider, selected.Model); err != nil {
 		return selected, policy, err
+	}
+	if in.Run != nil {
+		if err := CheckLockedRun(policy, cfg, *in.Run, selected, in.Debug); err != nil {
+			return selected, policy, err
+		}
 	}
 	return selected, policy, nil
 }
@@ -73,6 +81,7 @@ func ModelPolicyForSession(sess *session.Session, agent *agents.Agent) modelpoli
 	}
 	if agent != nil {
 		policy = policy.With(agent.Name, agent.AllowedModels)
+		policy.LockSession = policy.LockSession || agent.LockSession
 	}
 	return policy
 }

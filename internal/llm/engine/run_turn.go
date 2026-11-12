@@ -219,7 +219,7 @@ func (h *providerTurnToolEvents) handleSync(event core.Event) error {
 		}
 		transcript := buildApprovalTranscript(h.run.req.ApprovalTranscriptPrefix, h.run.req.Messages, approvalAssistant, approvalResults...)
 		h.send.TrySend(core.Event{Type: core.EventToolExecStart, ToolCallID: call.ID, ToolName: call.Name, ToolInfo: call.ToolInfo, ToolArgs: call.Arguments})
-		return h.engine.executeSingleToolCallOutcomeSafe(core.ContextWithApprovalTranscript(toolCtx, transcript), call, h.send, h.run.req.Debug, h.run.req.DebugRaw)
+		return h.engine.executeSingleToolCallOutcomeSafe(core.ContextWithApprovalTranscript(core.ContextWithUserUploads(toolCtx, h.run.req.SessionID, h.run.req.Messages), transcript), call, h.send, h.run.req.Debug, h.run.req.DebugRaw)
 	}, func(outcome toolCallOutcome) {
 		select {
 		case response <- core.ToolExecutionResponse{Result: outcome.output, Err: outcome.err}:

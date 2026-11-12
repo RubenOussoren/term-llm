@@ -27,6 +27,7 @@ func (e *Engine) Stream(ctx context.Context, req core.Request) (core.Stream, err
 			}
 		}
 	}
+	ctx, req.SessionID = core.ContextWithRequestSession(ctx, req.SessionID)
 	ctx = env.withDebugDiagnosticSink(ctx, e.debugLogger)
 	// Until this request is proven agentic, it has no boundary at which it can
 	// consume steering. This also clears accepting state left by a prior run.

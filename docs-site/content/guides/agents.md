@@ -226,6 +226,14 @@ Automatic auxiliary calls for a restricted session — titles, interrupt classif
 
 The guardian reviewer, memory batch commands, `sessions autotitle`, Telegram interrupt classification, and tools that call other services (`view_image` routing, `image_generate`, search) are configured by the operator and are not governed by the agent-level `allowed_models`. Provider-level restrictions still apply to their calls through text inference `providers`. The list governs term-llm's own model launches; it does not stop an agent from reaching another model through `shell` or HTTP. Restrict those with tool permissions.
 
+### Locking a sensitive conversation
+
+Agents may opt into `lock_session: true` alongside an explicit `allowed_models` list. The native runner then persists the effective model-policy chain and keeps the conversation's agent and project workspace fixed, including on branches. Attempts to retarget the protected transcript or compact it through a disallowed runtime fail before provider dispatch. Removing/widening the current definition does not erase the stored policy.
+
+Locked sessions require durable storage in the native serve/Responses runner. Direct `ask`, interactive TUI chat/handover, progressive runs and provider debug logging are currently refused rather than silently weakening the boundary. Start a new locked conversation instead of retrofitting an old unprotected one. This is not a general data-loss-prevention boundary against an operator manually copying text into another conversation; configure auxiliary routes deliberately.
+
+Custom scripts receive reserved `TERM_LLM_SESSION_ID`, `TERM_LLM_UPLOADS_JSON` and `TERM_LLM_PRIVATE_SESSION` variables from the admitted run context. The upload JSON is bounded metadata for structured user file uploads in that session, not arbitrary file mentions or assistant/tool outputs. It is not a filesystem capability: a consuming host must still confine paths, validate descriptors and enforce its own project authorization. Per-tool configuration and inherited environment cannot override these variables. `term-llm capabilities --json` reports these additive native interfaces.
+
 ## Time grounding
 
 Time grounding is disabled unless an agent explicitly opts in:

@@ -197,8 +197,7 @@ func includeConfiguredRunnerTools(req runpkg.Request) bool {
 
 // resolveRunModel admits the same immutable request used to build the runtime.
 // Child preflight calls this before emitting a started event.
-// runModelPolicies separates the rules inherited from ancestors (persisted on
-// the session) from the effective chain that also includes the agent's own rule.
+// runModelPolicies persists the effective chain for locked sessions, ancestors otherwise.
 type runModelPolicies struct{ Effective, Inherited modelpolicy.Policy }
 
 func (r *cmdRunner) resolveRunModel(ctx context.Context, req runpkg.Request) (*config.Config, *agents.Agent, appruntime.ModelSelection, runModelPolicies, error) {
@@ -212,7 +211,7 @@ func (r *cmdRunner) resolveRunModel(ctx context.Context, req runpkg.Request) (*c
 		providerFlag = strings.TrimSpace(r.defaults.Provider)
 	}
 	cmdProvider, cmdModel, _, _ := r.commandConfig(cfg)
-	selected, effective, err := appruntime.SelectRunModel(cfg, appruntime.ModelSelectionInput{Agent: agent, CmdProvider: cmdProvider, CmdModel: cmdModel, ProviderFlag: providerFlag, ModelOverride: req.Model, Fast: r.defaults.Fast, Inherited: inherited, Parent: req.ParentModel, ResumeModel: resume})
+	selected, effective, err := appruntime.SelectRunModel(cfg, appruntime.ModelSelectionInput{Agent: agent, CmdProvider: cmdProvider, CmdModel: cmdModel, ProviderFlag: providerFlag, ModelOverride: req.Model, Fast: r.defaults.Fast, Inherited: inherited, Parent: req.ParentModel, ResumeModel: resume, Run: &req, Debug: r.defaults.Debug || r.defaults.DebugRaw})
 	if err != nil {
 		return nil, nil, appruntime.ModelSelection{}, runModelPolicies{}, err
 	}
@@ -221,7 +220,7 @@ func (r *cmdRunner) resolveRunModel(ctx context.Context, req runpkg.Request) (*c
 		// describe the concrete fast target that was checked above.
 		cfg.ApplyOverrides(selected.Provider, selected.Model)
 	}
-	return cfg, agent, selected, runModelPolicies{Effective: effective, Inherited: inherited}, nil
+	return cfg, agent, selected, runModelPolicies{Effective: effective, Inherited: appruntime.PersistedRunPolicy(inherited, effective)}, nil
 }
 
 func (r *cmdRunner) prepare(ctx context.Context, req runpkg.Request, sink runpkg.EventSink) (*cmdRunEnvironment, error) {
@@ -335,7 +334,7 @@ func (r *cmdRunner) prepare(ctx context.Context, req runpkg.Request, sink runpkg
 			if err == nil && spawnRunner != nil {
 				spawnRunner.SetChildRunObserver(r.defaults.ChildRunObserver)
 				spawnRunner.SetModelPolicySource(func() ParentModelState {
-					return ParentModelState{Policy: policy, Provider: selected.Provider, Model: selected.Model}
+					return ParentModelState{Policy: runtime.modelPolicy, Provider: selected.Provider, Model: selected.Model}
 				})
 			}
 			return err
@@ -361,7 +360,7 @@ func (r *cmdRunner) prepare(ctx context.Context, req runpkg.Request, sink runpkg
 		}
 		if toolMgr != nil {
 			state := func() (modelpolicy.Policy, runpkg.ParentModel) {
-				return policy, runpkg.ParentModel{Provider: selected.Provider, Model: selected.Model}
+				return runtime.modelPolicy, runpkg.ParentModel{Provider: selected.Provider, Model: selected.Model}
 			}
 			toolMgr.Registry.SetAgentModelAdmission(state, func(ctx context.Context, name, model string, inherited modelpolicy.Policy, parent runpkg.ParentModel) error {
 				checker := &cmdRunner{baseCfg: r.baseCfg}

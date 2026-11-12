@@ -3636,7 +3636,7 @@ func (s *serveServer) ensurePersistedSessionForProjectBinding(ctx context.Contex
 	now := time.Now()
 	provisional := &session.Session{
 		ID: sessionID, Provider: providerName, ProviderKey: providerKey, Model: model,
-		Mode: session.ModeChat, Origin: session.OriginWeb, Agent: rt.agentName,
+		Mode: session.ModeChat, Origin: session.OriginWeb, Agent: rt.agentName, ModelPolicy: appruntime.LockedModelPolicy(rt.modelPolicy),
 		CreatedAt: now, UpdatedAt: now, Search: rt.search, Tools: rt.toolsSetting,
 		MCP: rt.mcpSetting, Status: session.StatusActive,
 	}
@@ -3724,6 +3724,7 @@ func (s *serveServer) syncPersistedSessionRuntime(ctx context.Context, sessionID
 			Mode:        session.ModeChat,
 			Origin:      session.OriginWeb,
 			Agent:       rt.agentName,
+			ModelPolicy: appruntime.LockedModelPolicy(rt.modelPolicy),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			Search:      rt.search,

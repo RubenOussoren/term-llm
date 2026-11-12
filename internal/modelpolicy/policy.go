@@ -16,7 +16,8 @@ type Rule struct {
 }
 
 type Policy struct {
-	Rules []Rule `json:"rules,omitempty"`
+	LockSession bool   `json:"lock_session,omitempty"`
+	Rules       []Rule `json:"rules,omitempty"`
 }
 
 func (p Policy) With(agent string, allowed []string) Policy {
@@ -25,13 +26,13 @@ func (p Policy) With(agent string, allowed []string) Policy {
 		// parent snapshot over the same persisted ancestry) adds nothing.
 		return p
 	}
-	next := Policy{Rules: append([]Rule(nil), p.Rules...)}
+	next := Policy{LockSession: p.LockSession, Rules: append([]Rule(nil), p.Rules...)}
 	next.Rules = append(next.Rules, Rule{Agent: agent, Allowed: append([]string(nil), allowed...)})
 	return next
 }
 
 func (p Policy) Append(other Policy) Policy {
-	out := Policy{Rules: append([]Rule(nil), p.Rules...)}
+	out := Policy{LockSession: p.LockSession || other.LockSession, Rules: append([]Rule(nil), p.Rules...)}
 	for _, rule := range other.Rules {
 		out = out.With(rule.Agent, rule.Allowed)
 	}

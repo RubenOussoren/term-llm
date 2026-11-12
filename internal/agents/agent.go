@@ -54,6 +54,8 @@ type Agent struct {
 	Model    string `yaml:"model,omitempty"`
 	// AllowedModels restricts this agent to provider:model or provider:* entries when set.
 	AllowedModels []string `yaml:"allowed_models,omitempty"`
+	// LockSession makes the effective policy and session identity sticky.
+	LockSession bool `yaml:"lock_session,omitempty"`
 
 	// Tool configuration
 	Tools ToolsConfig `yaml:"tools,omitempty"`
@@ -444,6 +446,9 @@ func (a *Agent) String() string {
 func (a *Agent) Validate() error {
 	if a.Name == "" {
 		return fmt.Errorf("agent name is required")
+	}
+	if a.LockSession && len(a.AllowedModels) == 0 {
+		return fmt.Errorf("lock_session requires explicit allowed_models")
 	}
 	for _, entry := range a.AllowedModels {
 		if !validAllowedModelEntry(entry) {

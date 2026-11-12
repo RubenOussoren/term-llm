@@ -178,6 +178,7 @@ One line per root-module package, generated from package doc comments by `make d
 - `internal/session` — owns durable sessions, messages, steering persistence and SQLite storage.
 - `internal/session/authordb` — owns the additive display-attribution schema and batched directory queries.
 - `internal/session/notificationdb` — implements durable logical-turn ownership and fenced notification delivery on the session SQLite transaction.
+- `internal/session/policydb` — persists locked session policy intersections atomically.
 - `internal/session/transcript` — adapts session writes to optional revision capabilities and identifies response-owned output.
 - `internal/session/transcriptprefix` — compares persisted transcript prefixes for replacement and compaction.
 - `internal/sessiontitle` — generates and validates short and long LLM session titles.

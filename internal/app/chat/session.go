@@ -134,6 +134,9 @@ func (r *chatInvocation) buildChatSessionRuntime(ctx context.Context, launch cha
 	if err != nil {
 		return nil, err
 	}
+	if (agent != nil && agent.LockSession) || (sess != nil && sess.ModelPolicy.LockSession) {
+		return nil, fmt.Errorf("locked sessions require the native runner; interactive chat is not supported")
+	}
 	var preparedMCP *mcpstart.PreparedSelection
 	if r.opts.Changed.MCP {
 		preparedMCP, err = mcpstart.PrepareSelection(agents.PolicyIdentity(agent), r.opts.MCP, true, warnings, r.deps.LoadMCPConfig)
@@ -584,7 +587,13 @@ func (r *chatInvocation) buildChatSessionRuntime(ctx context.Context, launch cha
 	model.PersistApprovalMode(desiredApprovalMode)
 
 	// Wire agent resolver, lister, and current agent for /handover support
-	model.SetAgentResolver(runtime.LoadAgent)
+	model.SetAgentResolver(func(name string, cfg *config.Config) (*agents.Agent, error) {
+		next, err := runtime.LoadAgent(name, cfg)
+		if err == nil && next != nil && next.LockSession {
+			return nil, fmt.Errorf("locked agents do not support interactive handover")
+		}
+		return next, err
+	})
 	currentRuntimeContext := chat.RuntimeSystemContext{
 		SystemPrompt: cfg.Chat.Instructions,
 		ApplySkills:  skillContextApplier(skillsSetup),

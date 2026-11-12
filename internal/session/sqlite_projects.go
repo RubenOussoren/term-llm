@@ -291,6 +291,7 @@ func (s *SQLiteStore) BootstrapProject(ctx context.Context, p *Project, matching
 		if _, err := conn.ExecContext(ctx, `
 			UPDATE sessions SET project_id = ?
 			WHERE id = ? AND project_id IS NULL
+			  AND COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0
 			  AND COALESCE(cwd, '') = ?
 			  AND COALESCE(worktree_dir, '') = ?`,
 			p.ID, match.ID, match.CWD, match.WorktreeDir); err != nil {
@@ -331,6 +332,7 @@ func (s *SQLiteStore) ClaimProjectSessions(ctx context.Context, projectID string
 			result, err := tx.ExecContext(ctx, `
 				UPDATE sessions SET project_id = ?
 				WHERE id = ? AND project_id IS NULL
+			  AND COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0
 				  AND COALESCE(cwd, '') = ?
 				  AND COALESCE(worktree_dir, '') = ?`,
 				projectID, match.ID, match.CWD, match.WorktreeDir)
@@ -357,6 +359,7 @@ func (s *SQLiteStore) AssignSessionProject(ctx context.Context, sessionID, proje
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE sessions SET project_id = ?
 		WHERE id = ? AND project_id IS NULL
+			  AND COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0
 		  AND COALESCE(cwd, '') = ?
 		  AND COALESCE(worktree_dir, '') = ?`, projectID, sessionID, expectedCWD, expectedWorktreeDir)
 	if err != nil {
@@ -388,7 +391,8 @@ func (s *SQLiteStore) SwitchSessionWorkspace(ctx context.Context, sessionID stri
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
 		SET cwd = ?, worktree_dir = NULLIF(?, ''), updated_at = ?
-		WHERE id = ? AND project_id = ?`,
+		WHERE id = ? AND project_id = ?
+		  AND COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0`,
 		binding.CWD, binding.WorktreeDir, time.Now().UTC(), sessionID, binding.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("switch session workspace: %w", err)
@@ -423,11 +427,12 @@ func (s *SQLiteStore) BindSessionWorkspace(ctx context.Context, sessionID string
 		    worktree_dir = CASE WHEN COALESCE(worktree_dir, '') = '' THEN NULLIF(?, '') ELSE worktree_dir END,
 		    updated_at = ?
 		WHERE id = ?
+		  AND (COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0 OR (COALESCE(project_id, '') = ? AND COALESCE(cwd, '') = ? AND COALESCE(worktree_dir, '') = ?) OR (COALESCE(project_id, '') = '' AND COALESCE(cwd, '') = '' AND COALESCE(worktree_dir, '') = '' AND NOT EXISTS (SELECT 1 FROM messages WHERE session_id = sessions.id)))
 		  AND (COALESCE(project_id, '') = '' OR COALESCE(project_id, '') = ?)
 		  AND (COALESCE(cwd, '') = '' OR COALESCE(cwd, '') = ?)
 		  AND (COALESCE(worktree_dir, '') = '' OR COALESCE(worktree_dir, '') = ?)`,
 		binding.ProjectID, binding.CWD, binding.WorktreeDir, now, sessionID,
-		binding.ProjectID, binding.CWD, binding.WorktreeDir)
+		binding.ProjectID, binding.CWD, binding.WorktreeDir, binding.ProjectID, binding.CWD, binding.WorktreeDir)
 	if err != nil {
 		return nil, fmt.Errorf("bind session workspace: %w", err)
 	}

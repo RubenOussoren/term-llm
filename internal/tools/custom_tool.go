@@ -140,6 +140,8 @@ func (t *CustomScriptTool) Execute(ctx context.Context, args json.RawMessage) (c
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
+	env = core.CustomToolEnvironment(ctx, env)
+
 	stdout := newLimitedBuffer(t.limits.MaxBytes)
 	stderr := newLimitedBuffer(t.limits.MaxBytes)
 

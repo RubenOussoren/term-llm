@@ -79,6 +79,11 @@ func Run(ctx context.Context, args []string, opts Options, deps Dependencies) er
 	if err != nil {
 		return err
 	}
+	// Direct ask cannot enforce the private-session scope contract yet. Refuse
+	// both new locked agents and persisted locks before history or provider setup.
+	if (agent != nil && agent.LockSession) || (resumeSession != nil && resumeSession.ModelPolicy.LockSession) {
+		return fmt.Errorf("locked sessions are not supported by direct ask")
+	}
 
 	var preparedMCP *mcpstart.PreparedSelection
 	if opts.Changed.MCP {

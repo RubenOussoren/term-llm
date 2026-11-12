@@ -221,6 +221,14 @@ Measure client-observed LLM streaming and input-processing performance
 | `--timeout` | duration | Hard timeout per request |
 | `--warmup` | int | Warmup runs per scenario (-1 uses the mode profile) |
 
+### `term-llm capabilities`
+
+Print native feature capability versions
+
+| Flag | Type | Description |
+|---|---|---|
+| `--json` | bool | Print machine-readable JSON (the default) |
+
 ### `term-llm chat`
 
 Start an interactive chat session

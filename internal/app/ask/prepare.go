@@ -46,8 +46,12 @@ func prepareAskConversation(ctx context.Context, cfg *config.Config, provider co
 		}
 		now := time.Now()
 		sess = &session.Session{ID: sessionID, Provider: provider.Name(), Model: model, Mode: session.ModeAsk, Agent: agentName, CreatedAt: now, UpdatedAt: now, Search: settings.Search, Tools: settings.Tools, MCP: settings.MCP, ApprovalMode: runapproval.ForColdPersistence(approval), Status: session.StatusActive}
+		sess.ProviderKey = cfg.DefaultProvider
+		sess.ModelPolicy = appruntime.ModelPolicyForSession(sess, agent)
 		sess.CWD = settings.PrimaryWorkspace
-		_ = store.Create(ctx, sess)
+		if err := store.Create(ctx, sess); err != nil && sess.ModelPolicy.LockSession {
+			return preparedAskConversation{}, fmt.Errorf("persist locked session: %w", err)
+		}
 	}
 	if ticket != nil {
 		if ticket.Owner() {

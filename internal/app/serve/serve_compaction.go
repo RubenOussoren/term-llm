@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/samsaffron/term-llm/internal/app/runtime"
 	"github.com/samsaffron/term-llm/internal/llm"
 	"github.com/samsaffron/term-llm/internal/llm/core"
 	"github.com/samsaffron/term-llm/internal/llm/engine"
@@ -19,17 +20,17 @@ var (
 )
 
 type preparedSessionCompaction struct {
-	rt           *serveRuntime
-	sessionID    string
-	history      []core.Message
-	systemPrompt string
-	model        string
-	config       engine.CompactionConfig
+	rt              *serveRuntime
+	history         []core.Message
+	systemPrompt    string
+	model           string
+	config          engine.CompactionConfig
+	admittedContext context.Context
 }
 
 // prepareCompaction reserves both admission and the runtime mutex. The owner
 // must call release, including if scheduling the prepared work fails.
-func (rt *serveRuntime) prepareCompaction(ctx context.Context, sessionID string) (*preparedSessionCompaction, error) {
+func (rt *serveRuntime) prepareCompaction(ctx context.Context, sessionID string) (prepared *preparedSessionCompaction, err error) {
 	if rt == nil {
 		return nil, errServeCompactionUnavailable
 	}
@@ -40,7 +41,7 @@ func (rt *serveRuntime) prepareCompaction(ctx context.Context, sessionID string)
 		rt.compacting.Store(false)
 		return nil, errServeSessionBusy
 	}
-	prepared := &preparedSessionCompaction{rt: rt, sessionID: sessionID}
+	prepared = &preparedSessionCompaction{rt: rt}
 	if rt.provider == nil || rt.store == nil || strings.TrimSpace(sessionID) == "" {
 		prepared.release()
 		return nil, errServeCompactionUnavailable
@@ -48,6 +49,10 @@ func (rt *serveRuntime) prepareCompaction(ctx context.Context, sessionID string)
 	if !rt.ensurePersistedSession(ctx, sessionID, nil) || rt.sessionMeta == nil {
 		prepared.release()
 		return nil, errServeCompactionUnavailable
+	}
+	if prepared.admittedContext, rt.modelPolicy, err = runtime.AdmitPrivateSession(core.ContextWithSessionID(ctx, sessionID), rt.store, core.Request{SessionID: sessionID}, rt.modelPolicy, rt.modelPolicyConfig, rt.agentName, rt.privateScopeDir(), rt.providerKey, rt.defaultModel); err != nil {
+		prepared.release()
+		return nil, err
 	}
 	// A runtime rehydrated after restart restores provider resume state only
 	// when a turn starts; native compaction needs it before any turn.
@@ -79,8 +84,7 @@ func (rt *serveRuntime) prepareCompaction(ctx context.Context, sessionID string)
 		config.InputLimit = limit
 	}
 
-	prepared.history, prepared.systemPrompt = history, systemPrompt
-	prepared.model, prepared.config = model, config
+	prepared.history, prepared.systemPrompt, prepared.model, prepared.config = history, systemPrompt, model, config
 	return prepared, nil
 }
 
@@ -102,7 +106,8 @@ func (rt *serveRuntime) compactSession(ctx context.Context, sessionID string) (*
 }
 
 func (p *preparedSessionCompaction) execute(ctx context.Context) (*engine.CompactionResult, error) {
-	rt, sessionID := p.rt, p.sessionID
+	rt, sessionID := p.rt, core.SessionIDFromContext(p.admittedContext)
+	ctx = runtime.PrivateSessionExecutionContext(ctx, p.admittedContext, sessionID)
 	// Providers that own their context (claude-bin) compact natively in place;
 	// term-llm's transcript is left untouched.
 	if native, ok, err := llm.NativeCompact(ctx, rt.provider, core.NativeCompactRequest{SystemPrompt: p.systemPrompt, Model: p.model}); ok {

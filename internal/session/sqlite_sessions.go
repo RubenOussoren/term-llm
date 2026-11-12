@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/samsaffron/term-llm/internal/modelpolicy"
 	planpkg "github.com/samsaffron/term-llm/internal/plan"
 	"github.com/samsaffron/term-llm/internal/runtimeoutput"
+	"github.com/samsaffron/term-llm/internal/session/policydb"
 )
 
 func (s *SQLiteStore) Create(ctx context.Context, sess *Session) error {
@@ -101,7 +101,7 @@ func (s *SQLiteStore) Create(ctx context.Context, sess *Session) error {
 		if s.hasModelPolicy {
 			modelPolicyCol = ", model_policy"
 			modelPolicyPlaceholder = ", ?"
-			modelPolicyArgs = []any{sessionModelPolicyJSON(sess.ModelPolicy)}
+			modelPolicyArgs = []any{policydb.JSON(sess.ModelPolicy)}
 		}
 		pinOrderCol := ""
 		pinOrderPlaceholder := ""
@@ -342,11 +342,15 @@ func (s *SQLiteStore) Update(ctx context.Context, sess *Session) error {
 		args = append(args, shareJSONString(sess.Share))
 	}
 	if s.hasModelPolicy {
-		args = append(args, sessionModelPolicyJSON(sess.ModelPolicy))
+		args = append(args, policydb.JSON(sess.ModelPolicy))
 	}
 	args = append(args, sess.ID)
+	if s.hasModelPolicy {
+		query += ` AND (COALESCE(json_extract(model_policy, '$.lock_session'), 0) = 0 OR (COALESCE(agent, '') = ? AND COALESCE(cwd, '') = ? AND COALESCE(worktree_dir, '') = ? AND COALESCE(project_id, '') = ?) OR (COALESCE(agent, '') = ? AND COALESCE(project_id, '') = '' AND COALESCE(cwd, '') = '' AND COALESCE(worktree_dir, '') = '' AND NOT EXISTS (SELECT 1 FROM messages WHERE session_id = sessions.id)))`
+		args = append(args, sess.Agent, sess.CWD, sess.WorktreeDir, sess.ProjectID, sess.Agent)
+	}
 
-	result, err := s.db.ExecContext(ctx, query, args...)
+	result, err := policydb.Update(ctx, s.db, query, args, sess.ID, sess.ModelPolicy, s.hasModelPolicy)
 	if err != nil {
 		return fmt.Errorf("update session: %w", err)
 	}
@@ -986,17 +990,6 @@ func (s *SQLiteStore) List(ctx context.Context, opts ListOptions) ([]SessionSumm
 		results = append(results, sum)
 	}
 	return results, rows.Err()
-}
-
-func sessionModelPolicyJSON(policy modelpolicy.Policy) any {
-	if !policy.Restricted() {
-		return nil
-	}
-	encoded, err := json.Marshal(policy)
-	if err != nil {
-		return nil
-	}
-	return string(encoded)
 }
 
 // AddMessage adds a message to a session.

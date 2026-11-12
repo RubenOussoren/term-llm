@@ -69,7 +69,7 @@ func (e *Engine) resumePending(ctx context.Context, req *core.Request, resume *c
 			return err
 		}
 	}
-	results, err := e.executeToolCalls(ctx, calls, req.ParallelToolCalls, send, req.Debug, req.DebugRaw, buildApprovalTranscript(req.ApprovalTranscriptPrefix, req.Messages, core.Message{}))
+	results, err := e.executeToolCalls(core.ContextWithUserUploads(ctx, req.SessionID, req.Messages), calls, req.ParallelToolCalls, send, req.Debug, req.DebugRaw, buildApprovalTranscript(req.ApprovalTranscriptPrefix, req.Messages, core.Message{}))
 	if err != nil {
 		return err
 	}

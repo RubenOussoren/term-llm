@@ -230,7 +230,7 @@ func (e *Engine) recoverCommittedTurn(r *engineTurnRecovery, cause error) (bool,
 	}
 
 	transcriptForApproval := buildApprovalTranscript(req.ApprovalTranscriptPrefix, req.Messages, assistantMsg)
-	toolResults, err := e.executeToolCalls(ctx, registered, req.ParallelToolCalls, send, req.Debug, req.DebugRaw, transcriptForApproval)
+	toolResults, err := e.executeToolCalls(core.ContextWithUserUploads(ctx, req.SessionID, req.Messages), registered, req.ParallelToolCalls, send, req.Debug, req.DebugRaw, transcriptForApproval)
 	if err != nil {
 		return false, err
 	}

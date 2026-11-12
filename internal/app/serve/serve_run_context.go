@@ -62,3 +62,10 @@ func (rt *serveRuntime) prepareRunContext(ctx context.Context, collaboration too
 	req.ReasoningEffort = effort
 	return ctx, model, effort
 }
+
+func (rt *serveRuntime) privateScopeDir() string {
+	if rt.settings == nil {
+		return ""
+	}
+	return rt.settings.PrimaryWorkspace
+}

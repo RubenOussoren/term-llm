@@ -1078,6 +1078,7 @@ func (rt *serveRuntime) ensureSessionInStore(ctx context.Context, sessionID stri
 		Mode:        session.ModeChat,
 		Origin:      session.OriginWeb,
 		Agent:       rt.agentName,
+		ModelPolicy: runtime.LockedModelPolicy(rt.modelPolicy),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Search:      rt.search,
@@ -1177,6 +1178,7 @@ func (rt *serveRuntime) ensurePersistedSession(ctx context.Context, sessionID st
 		Mode:        session.ModeChat,
 		Origin:      session.OriginWeb,
 		Agent:       rt.agentName,
+		ModelPolicy: runtime.LockedModelPolicy(rt.modelPolicy),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Search:      rt.search,
@@ -1946,6 +1948,10 @@ func (rt *serveRuntime) runOnce(ctx context.Context, stateful bool, replaceHisto
 		rt.dropTrailingUserHistory(inputMessages)
 	}
 
+	ctx, rt.modelPolicy, err = runtime.AdmitPrivateSession(ctx, rt.goalStore, req, rt.modelPolicy, rt.modelPolicyConfig, rt.agentName, rt.privateScopeDir(), rt.providerKey, rt.defaultModel)
+	if err != nil {
+		return serveRunResult{}, err
+	}
 	rushInitial := rushFromContext(ctx)
 	runSpec := serveRunSpec{stateful: stateful, persisted: persisted, replaceHistory: replaceHistory, batchInitial: collaborationBinding.Required || rushInitial != nil}
 	historyPreparation := rt.prepareRunHistory(ctx, runSpec, req.SessionID, inputMessages, &req, time.Now)

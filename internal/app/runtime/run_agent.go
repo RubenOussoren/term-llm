@@ -28,6 +28,9 @@ func ResolveRunAgent(ctx context.Context, req runpkg.Request, cfg *config.Config
 	var agent *agents.Agent
 	var err error
 	if sess != nil {
+		if err := CheckSessionScope(sess, req.AgentName, req.Cwd); err != nil {
+			return nil, inherited, resume, err
+		}
 		inherited = sess.ModelPolicy.Append(inherited)
 		if req.Resume {
 			resume = runpkg.ParentModel{Provider: ResolveSessionProviderKey(cfg, sess), Model: sess.Model}
