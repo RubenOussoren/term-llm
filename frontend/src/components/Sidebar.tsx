@@ -361,6 +361,8 @@ function SessionRow({
       ref={row}
       class={`session-row ${session.archived ? 'archived' : ''} ${needsInput ? 'is-input-required' : running ? 'is-active' : ''} ${unseen ? 'is-unseen' : ''} ${menuOpen ? 'menu-open' : ''} ${archiving ? 'is-archiving' : ''} ${reorderable ? 'is-reorderable' : ''} ${pinned?.dragging ? 'is-dragging' : ''}`}
       data-reorder-id={pinned ? session.id : undefined}
+      data-session-id={session.id}
+      data-session-agent={session.agent || undefined}
     >
       <button
         class={`session-btn ${active ? 'active' : ''}`}

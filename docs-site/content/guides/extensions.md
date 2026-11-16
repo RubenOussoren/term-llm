@@ -148,6 +148,17 @@ Context usage deliberately differs from aggregate response usage: `usedTokens` a
 
 Direct DOM access is allowed, but prefer CSS and dedicated mounts to moving Preact-owned nodes. Private selectors may change between releases. Canvas-rendered terminal content does not automatically restyle when CSS changes.
 
+### Sidebar session metadata
+
+Rendered sidebar chat rows expose read-only session metadata for extensions:
+
+- `data-session-id`: the row's session ID, including ordinary, pinned, project and search-result rows. Use this instead of matching titles, which need not be unique.
+- `data-session-agent`: the session's recorded `agent` value, omitted when no agent is recorded. Do not infer a default from the new-chat picker or model. This is session-level metadata, not a history of agents or delegated subagents used for every turn.
+
+Unsent draft rows do not expose these attributes. Extensions can feature-detect the attributes and observe row changes without fetching transcripts or inspecting Preact internals. Treat attribute values as text, not HTML, and do not modify these host-owned attributes.
+
+These values are already present in the authorized browser's session data; the attributes add no new API or permissions. They apply to the chat sidebar, not public share/export pages. Agent names remain visible to trusted page scripts and should not contain secrets.
+
 ## Recovery
 
 Open the current web URL with **`?safe-mode=1`**, preferably in a fresh tab if JavaScript has frozen the original page. Safe mode skips all extension CSS and JS. It stays on for that tab until you explicitly exit it, including across session navigation.

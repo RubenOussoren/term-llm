@@ -38,6 +38,8 @@ describe('sidebar new-chat drafts', () => {
 
     const row = screen.getByRole('button', { name: 'Unsent draft: Plan the migration' });
     expect(row).toHaveTextContent('Unsent · just now');
+    expect(row.closest('.session-row')).not.toHaveAttribute('data-session-id');
+    expect(row.closest('.session-row')).not.toHaveAttribute('data-session-agent');
     expect(document.querySelector('#newChatBtn')).toHaveAttribute(
       'aria-label',
       'New chat, unsent draft',
